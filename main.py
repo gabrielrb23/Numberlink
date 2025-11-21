@@ -1,5 +1,6 @@
 import sys
-from board import Board, solve_numberlink
+from time import perf_counter
+from board import Board, solve_numberlink, is_board_solved, SolveStats
 
 
 def main():
@@ -37,28 +38,66 @@ def main():
     # -----------------------------
     if modo == "resolver":
         print("Intentando resolver automáticamente...\n")
-        if solve_numberlink(board, require_full_cover=True):
+
+        stats = SolveStats()
+        t0 = perf_counter()
+        solved = solve_numberlink(board, require_full_cover=True, stats=stats)
+        t1 = perf_counter()
+        elapsed = t1 - t0
+
+        if solved:
             print("¡Tablero resuelto!\n")
             board.print_grid()
         else:
             print("No se encontró solución automática :(")
+
+        print("\nResumen de ejecución:")
+        print(f"  Tiempo: {elapsed:.6f} segundos")
+        print(f"  Llamadas a backtrack: {stats.backtrack_calls}")
+        print(f"  Caminos candidatos examinados: {stats.painted_paths}")
+        print(f"  Chequeos BFS de alcanzabilidad: {stats.bfs_checks}")
         return
+
 
     # -----------------------------
     # Modo jugar manualmente
     # -----------------------------
     elif modo == "jugar":
         print("Modo manual: escribe el símbolo que quieres conectar.")
-        print("Escribe 'x' para salir.\n")
+        print("Comandos adicionales:")
+        print("  borrar X  -> borra el camino del símbolo X (dejando sus extremos)")
+        print("  x         -> salir del modo de juego\n")
 
         while True:
-            simbolo = input("Símbolo a conectar: ").strip()
-            if simbolo.lower() == "x":
-                print("Saliendo del modo de juego.")
+            comando = input("Símbolo a conectar o comando: ").strip()
+
+            # Salir
+            if comando.lower() == "x":
+                # Al salir, revisar si el tablero quedó resuelto
+                if is_board_solved(board, require_full_cover=True):
+                    print("\n¡Felicidades! Has resuelto el Numberlink.")
+                else:
+                    print("\nSaliendo del modo de juego. El tablero no está resuelto todavía.")
+                print("\nEstado final del tablero:")
+                board.print_grid()
                 break
 
+            # Comando borrar
+            partes = comando.split()
+            if len(partes) == 2 and partes[0].lower() == "borrar":
+                simbolo_borrar = partes[1]
+                board.clear_symbol_path(simbolo_borrar)
+                print(f"Se borró el camino del símbolo '{simbolo_borrar}'.\n")
+                board.print_grid()
+                print("")
+                continue
+
+            # En caso contrario, lo interpretamos como símbolo
+            simbolo = comando
+
+            # Verificar que el símbolo exista en el tablero
             if simbolo not in board.connectors:
-                print("Ese símbolo no existe o ya está conectado.\n")
+                print("Ese símbolo no existe en el tablero.\n")
                 continue
 
             conectado = board.play_symbol_path_by_coords(simbolo)
@@ -68,8 +107,13 @@ def main():
             else:
                 print(f"No se conectó el símbolo '{simbolo}'.\n")
 
-        print("Estado final del tablero:")
-        board.print_grid()
+            # Después de cada intento, verificar si ya ganó
+            if is_board_solved(board, require_full_cover=True):
+                print("¡Felicidades! Has resuelto el Numberlink.")
+                print("\nEstado final del tablero:")
+                board.print_grid()
+                break
+
         return
 
     else:

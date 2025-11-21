@@ -1,9 +1,14 @@
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Tuple, Set, Optional
 from collections import deque
 
 Position = Tuple[int, int]
 
+@dataclass
+class SolveStats:
+    backtrack_calls: int = 0
+    painted_paths: int = 0
+    bfs_checks: int = 0
 
 @dataclass
 class Board:
@@ -152,6 +157,26 @@ class Board:
                 f"No puedes pasar por ({nr}, {nc}), está ocupado por '{cell}'."
             )
 
+def is_board_solved(board: "Board", require_full_cover: bool = True) -> bool:
+    """
+    Verifica si el tablero está resuelto:
+    - Cada par de conectores tiene un camino entre sus extremos.
+    - Opcionalmente, no quedan espacios vacíos.
+    """
+    # 1. Cada símbolo debe tener un camino entre sus dos extremos
+    for symbol, positions in board.connectors.items():
+        start, goal = positions
+        if not _reachable(board, start, goal, symbol):
+            return False
+
+    # 2. (Opcional) Exigir tablero completamente cubierto
+    if require_full_cover:
+        for r in range(board.rows):
+            for c in range(board.cols):
+                if board.grid[r][c] == " ":
+                    return False
+
+    return True
 
 #  SOLVER AUTOMÁTICO
 # Conseguir todas las posiciones vecinas de una celda
@@ -165,7 +190,6 @@ def _neighbors(board: "Board", pos: Position):
 # Distancia Manhattan
 def _manhattan(a: Position, b: Position) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
 
 # BFS rápido para comprobar si aún hay algún camino para un par
 def _reachable(board: "Board", start: Position, goal: Position, symbol: str) -> bool:
@@ -193,7 +217,12 @@ def _reachable(board: "Board", start: Position, goal: Position, symbol: str) -> 
     return False
 
 # Comprobar si con los caminos ya dibujados, todos los pares siguen teniendo al menos un camino posible
-def _all_remaining_pairs_reachable(board: "Board", symbols: List[str], idx: int) -> bool:
+def _all_remaining_pairs_reachable(
+    board: "Board",
+    symbols: List[str],
+    idx: int,
+    stats: Optional[SolveStats] = None
+) -> bool:
     """
     Comprueba que, con los caminos ya dibujados, todos los pares desde idx
     hacia adelante siguen teniendo al menos un camino posible.
@@ -201,10 +230,11 @@ def _all_remaining_pairs_reachable(board: "Board", symbols: List[str], idx: int)
     for k in range(idx, len(symbols)):
         s = symbols[k]
         pos1, pos2 = board.connectors[s]
+        if stats is not None:
+            stats.bfs_checks += 1      # contamos un chequeo BFS
         if not _reachable(board, pos1, pos2, s):
             return False
     return True
-
 
 # DFS con heurística tipo Dijkstra/A* para generar caminos
 def _generate_paths_for_pair(
@@ -257,13 +287,18 @@ def _generate_paths_for_pair(
 
 
 # Backtracking global sobre los símbolos
-def solve_numberlink(board: "Board", require_full_cover: bool = True) -> bool:
+def solve_numberlink(
+    board: "Board",
+    require_full_cover: bool = True,
+    stats: Optional[SolveStats] = None
+) -> bool:
     """
     Resuelve el Numberlink del tablero dado:
     - Conecta cada par de símbolos con un camino simple (sin cruces).
     - Si require_full_cover=True, exige que no queden espacios vacíos.
 
     Devuelve True si encuentra solución (el tablero queda modificado con la solución).
+    Si se pasa un objeto stats, se llenan contadores de backtracking y podas.
     """
     # Ordenar símbolos por distancia Manhattan entre sus extremos (heurística)
     symbols = sorted(
@@ -272,6 +307,10 @@ def solve_numberlink(board: "Board", require_full_cover: bool = True) -> bool:
     )
 
     def backtrack(idx: int) -> bool:
+        # contamos llamada a backtrack
+        if stats is not None:
+            stats.backtrack_calls += 1
+
         # Ya conectamos todos los pares?
         if idx == len(symbols):
             if not require_full_cover:
@@ -290,6 +329,9 @@ def solve_numberlink(board: "Board", require_full_cover: bool = True) -> bool:
         candidate_paths = _generate_paths_for_pair(board, symbol, start, goal)
 
         for path in candidate_paths:
+            if stats is not None:
+                stats.painted_paths += 1   # intentamos un nuevo camino
+
             painted: List[Position] = []
             ok = True
 
@@ -312,7 +354,7 @@ def solve_numberlink(board: "Board", require_full_cover: bool = True) -> bool:
                 continue
 
             # Chequeo rápido: ¿los pares restantes siguen siendo alcanzables?
-            if _all_remaining_pairs_reachable(board, symbols, idx + 1):
+            if _all_remaining_pairs_reachable(board, symbols, idx + 1, stats):
                 if backtrack(idx + 1):
                     return True
 
