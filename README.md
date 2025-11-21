@@ -25,13 +25,13 @@ El programa recibe **dos argumentos**:
 #### 👉 Ejecutar en modo *resolver*
 
 ``` bash
-python main.py test-files\\numberlink_00.txt resolver
+python main.py test-files\numberlink_00.txt resolver
 ```
 
 #### 👉 Ejecutar en modo *jugar*
 
 ``` bash
-python main.py test-files\\numberlink_00.txt jugar
+python main.py test-files\numberlink_00.txt jugar
 ```
 
 ------------------------------------------------------------------------
