@@ -64,12 +64,10 @@ def main():
     # -----------------------------
     elif modo == "jugar":
         print("Modo manual: escribe el símbolo que quieres conectar.")
-        print("Comandos adicionales:")
-        print("  borrar X  -> borra el camino del símbolo X (dejando sus extremos)")
-        print("  x         -> salir del modo de juego\n")
+        print("Escribe 'x' para salir.\n")
 
         while True:
-            comando = input("Símbolo a conectar o comando: ").strip()
+            comando = input("Símbolo a conectar: ").strip()
 
             # Salir
             if comando.lower() == "x":
@@ -82,22 +80,12 @@ def main():
                 board.print_grid()
                 break
 
-            # Comando borrar
-            partes = comando.split()
-            if len(partes) == 2 and partes[0].lower() == "borrar":
-                simbolo_borrar = partes[1]
-                board.clear_symbol_path(simbolo_borrar)
-                print(f"Se borró el camino del símbolo '{simbolo_borrar}'.\n")
-                board.print_grid()
-                print("")
-                continue
-
-            # En caso contrario, lo interpretamos como símbolo
+            # Interpretar el comando como símbolo
             simbolo = comando
 
             # Verificar que el símbolo exista en el tablero
             if simbolo not in board.connectors:
-                print("Ese símbolo no existe en el tablero.\n")
+                print("Ese símbolo no existe en el tablero o ya está conectado.\n")
                 continue
 
             conectado = board.play_symbol_path_by_coords(simbolo)
